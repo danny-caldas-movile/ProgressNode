@@ -23,6 +23,7 @@ public class ProgressNode : SKShapeNode
         static let width : CGFloat           = 2.0
         static let progress : CGFloat        = 0.0
         static let startAngle : CGFloat      = CGFloat(M_PI_2)
+        static private let actionKey         = "_progressNodeCountdownActionKey"
     }
     
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -149,16 +150,36 @@ public class ProgressNode : SKShapeNode
     and it calls a callback on the main thread if its finished
     
     :param: time     The time interval to count
+    :param: progressHandler   An optional callback method (always called on main thread)
     :param: callback An optional callback method (always called on main thread)
     */
-    public func countdown(time: NSTimeInterval = 1.0, callback: ((Void) -> Void)?) {
+    public func countdown(time: NSTimeInterval = 1.0, completionHandler: ((Void) -> Void)?) {
+        self.countdown(time: time, progressHandler: nil, completionHandler: completionHandler)
+    }
+    
+    public func countdown(time: NSTimeInterval = 1.0, progressHandler: ((Void) -> Void)?, completionHandler: ((Void) -> Void)?) {
+        self.stopCountdown()
+        
         self.runAction(SKAction.customActionWithDuration(time, actionBlock: {(node: SKNode!, elapsedTime: CGFloat) -> Void in
             self.progress = elapsedTime / CGFloat(time)
-            if let cb = callback {
+            
+            if let cb = progressHandler {
                 dispatch_async(dispatch_get_main_queue(), {
                     cb()
-                });
+                })
             }
-        }))
+            
+            if self.progress == 1.0 {
+                if let cb = completionHandler {
+                    dispatch_async(dispatch_get_main_queue(), {
+                        cb()
+                    })
+                }
+            }
+        }), withKey:ProgressNode.Constants.actionKey)
+    }
+    
+    public func stopCountdown() {
+        self.removeActionForKey(ProgressNode.Constants.actionKey)
     }
 }
